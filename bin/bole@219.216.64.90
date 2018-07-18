@@ -1,0 +1,16 @@
+#!/usr/bin/expect
+
+set user bole@219.216.64.129
+set host 16007:127.0.0.1:6006
+set password .
+set timeout 3
+
+spawn ssh -L $host $user
+expect "*password*"
+send "password\r"
+
+send "cd THUMT/thumt/bin/parsing"
+
+send "tensorboard logdir=./"
+
+interact
