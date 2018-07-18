@@ -541,19 +541,13 @@ def main(args):
                 save_checkpoint_secs=None, config=config) as sess:
             # Restore pre-trained variables
             sess.run_step_fn(restore_fn)
-            parsing_step = 0
-            amr_step = 0
+            step = 0
             while not sess.should_stop():
-                if parsing_step != 100:
+                if step % 2 == 0:
                     sess.run_step_fn(parsing_step_fn)
-                    parsing_step += 1
                 else:
-                    if amr_step != 100:
-                        sess.run_step_fn(amr_step_fn)
-                        amr_step += 1
-                    else:
-                        parsing_step = 0
-                        amr_step = 0
+                    sess.run_step_fn(amr_step_fn)
+                step += 1
 
 
 
