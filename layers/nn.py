@@ -8,7 +8,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 
-def linear(inputs, output_size, bias, concat=True, dtype=None, scope=None):
+def linear(inputs, output_size, bias, concat=True, dtype=None, scope='shared_linear'):
     """
     Linear layer
     :param inputs: A Tensor or a list of Tensors with shape [batch, input_size]
@@ -22,7 +22,7 @@ def linear(inputs, output_size, bias, concat=True, dtype=None, scope=None):
                           compatible with each other
     """
 
-    with tf.variable_scope(scope, default_name="linear", values=[inputs]):
+    with tf.variable_scope(scope, default_name="linear", values=[inputs], reuse=tf.AUTO_REUSE):
         if not isinstance(inputs, (list, tuple)):
             inputs = [inputs]
 

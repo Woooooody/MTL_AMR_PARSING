@@ -350,7 +350,7 @@ def multihead_attention(queries, memories, bias, num_heads, key_size,
                          "attention heads (%d)." % (value_size, num_heads))
 
     with tf.variable_scope(scope, default_name="multihead_attention",
-                           values=[queries, memories], dtype=dtype):
+                           values=[queries, memories], dtype=dtype, reuse=tf.AUTO_REUSE):
         next_state = {}
 
         if memories is None:

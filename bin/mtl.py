@@ -402,19 +402,18 @@ def main(args):
         #         params.device_list
         # )
         # parsing_loss, amr_loss = model.get_training_func(initializer, regularizer)([parsing_features, amr_features])
-        parsing_loss = model.get_training_func(initializer, regularizer, problem='parsing')(parsing_features)
-        amr_loss = model.get_training_func(initializer, regularizer, problem='amr')(amr_features)
+        # with tf.variable_scope("shared_decode_variable") as scope:
+        #     parsing_loss = model.get_training_func(initializer, regularizer, problem='parsing')(parsing_features)
+        #     scope.reuse_variables()
+        #     amr_loss = model.get_training_func(initializer, regularizer, problem='amr')(amr_features)
+        #with tf.variable_scope("encoder_shared", reuse=True):
 
-        # def training_fn(features, params=None, reuse=None):
-        #     if params is None:
-        #         params = self.parameters
-        #     with tf.variable_scope(self._scope, initializer=initializer,
-        #                            regularizer=regularizer, reuse=reuse):
-        #         loss = model_graph(features, "train", params)
-        #         return loss
-        # parsing_loss = tf.add_n(parsing_sharded_losses) / len(parsing_sharded_losses)
+        parsing_encoder_output = model.get_encoder_out(parsing_features, "train", params, initializer=initializer, regularizer=regularizer)
+        amr_encoder_output = model.get_encoder_out(amr_features, "train", params, initializer=initializer, regularizer=regularizer)
+        parsing_loss = model.get_decoder_out(parsing_features, parsing_encoder_output, "train", params, problem="parsing")
+        amr_loss = model.get_decoder_out(amr_features, amr_encoder_output, "train", params, problem="amr")
 
-        # amr_loss = tf.add_n(amr_sharded_losses) / len(parsing_sharded_losses)
+
 
         parsing_loss = parsing_loss + tf.losses.get_regularization_loss()
 
@@ -451,9 +450,9 @@ def main(args):
         else:
             raise RuntimeError("Optimizer %s not supported" % params.optimizer)
 
-        parsing_loss, parsing_ops = optimize.create_train_op(parsing_loss, opt, global_step, params)
-        amr_loss, amr_ops = optimize.create_train_op(amr_loss, opt, global_step, params)
-        restore_op = restore_variables(args.checkpoint)
+        parsing_loss, parsing_ops = optimize.create_train_op(parsing_loss, opt, global_step, params, problem="parsing")
+        amr_loss, amr_ops = optimize.create_train_op(amr_loss, opt, global_step, params, problem="amr")
+        # restore_op = restore_variables(args.checkpoint)
 
         # Validation
         if params.validation and params.references[0]:
@@ -540,7 +539,7 @@ def main(args):
                 checkpoint_dir=params.output, hooks=train_hooks,
                 save_checkpoint_secs=None, config=config) as sess:
             # Restore pre-trained variables
-            sess.run_step_fn(restore_fn)
+            # sess.run_step_fn(restore_fn)
             step = 0
             while not sess.should_stop():
                 if step % 2 == 0:

@@ -44,9 +44,9 @@ def _collect_gradients(gradients, variables):
     return tf.group(*ops, name="collect_gradients")
 
 
-def create_train_op(loss, optimizer, global_step, params):
+def create_train_op(loss, optimizer, global_step, params, problem=None):
 
-    with tf.name_scope("create_train_op"):
+    with tf.name_scope(problem+"_create_train_op"):
         grads_and_vars = optimizer.compute_gradients(
             loss, colocate_gradients_with_ops=True)
         gradients = [item[0] for item in grads_and_vars]
