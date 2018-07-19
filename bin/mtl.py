@@ -40,7 +40,7 @@ def parse_args(args=None):
                         help="Path to tf.Record data")
     parser.add_argument("--output", type=str, default="train",
                         help="Path to saved models")
-    parser.add_argument("--vocabulary", type=str, nargs=2,
+    parser.add_argument("--vocabulary", type=str, nargs=3,
                         help="Path of source and target vocabulary")
     parser.add_argument("--validation", type=str,
                         help="Path of validation file")
@@ -407,12 +407,29 @@ def main(args):
         #     scope.reuse_variables()
         #     amr_loss = model.get_training_func(initializer, regularizer, problem='amr')(amr_features)
         #with tf.variable_scope("encoder_shared", reuse=True):
-
-        parsing_encoder_output = model.get_encoder_out(parsing_features, "train", params, initializer=initializer, regularizer=regularizer)
-        amr_encoder_output = model.get_encoder_out(amr_features, "train", params, initializer=initializer, regularizer=regularizer)
-        parsing_loss = model.get_decoder_out(parsing_features, parsing_encoder_output, "train", params, problem="parsing")
-        amr_loss = model.get_decoder_out(amr_features, amr_encoder_output, "train", params, problem="amr")
-
+        print(params.layer_postprocess)
+        with tf.variable_scope("encoder_shared", initializer=initializer,
+                               regularizer=regularizer, reuse=tf.AUTO_REUSE):
+            parsing_encoder_output = model.get_encoder_out(parsing_features,
+                                                           "train",
+                                                           params)
+            amr_encoder_output = model.get_encoder_out(amr_features,
+                                                       "train",
+                                                       params)
+        with tf.variable_scope("parsing_decoder", initializer=initializer,
+                               regularizer=regularizer):
+            parsing_loss = model.get_decoder_out(parsing_features,
+                                                 parsing_encoder_output,
+                                                 "train",
+                                                 params,
+                                                 problem="parsing")
+        with tf.variable_scope("amr_decoder", initializer=initializer,
+                               regularizer=regularizer):
+            amr_loss = model.get_decoder_out(amr_features,
+                                             amr_encoder_output,
+                                             "train",
+                                             params,
+                                             problem="amr")
 
 
         parsing_loss = parsing_loss + tf.losses.get_regularization_loss()
@@ -452,7 +469,8 @@ def main(args):
 
         parsing_loss, parsing_ops = optimize.create_train_op(parsing_loss, opt, global_step, params, problem="parsing")
         amr_loss, amr_ops = optimize.create_train_op(amr_loss, opt, global_step, params, problem="amr")
-        # restore_op = restore_variables(args.checkpoint)
+
+        restore_op = restore_variables(args.checkpoint)
 
         # Validation
         if params.validation and params.references[0]:
@@ -475,7 +493,8 @@ def main(args):
 
         train_hooks = [
             tf.train.StopAtStepHook(last_step=params.train_steps),
-            tf.train.NanTensorHook([parsing_loss, amr_loss]),
+            tf.train.NanTensorHook(parsing_loss),
+            tf.train.NanTensorHook(amr_loss),
             tf.train.LoggingTensorHook(
                 {
                     "step": global_step,
@@ -520,7 +539,7 @@ def main(args):
 
         def parsing_step_fn(step_context):
             # Bypass hook calls
-            step_context.session.run([parsing_init_op, parsing_ops["zero_op"]])
+            step_context.session.run([parsing_init_op, parsing_ops["zero_op"]])  # if params.cycle==1 do nothing
             for i in range(update_cycle - 1):
                 step_context.session.run(parsing_ops["collect_op"])
 
@@ -534,12 +553,16 @@ def main(args):
 
             return step_context.run_with_hooks(amr_ops["train_op"])
 
+        def step_fn(step_context):
+            # Bypass hook calls
+            return step_context.run_with_hooks(parsing_ops["train_op"])
+
         # Create session, do not use default CheckpointSaverHook
         with tf.train.MonitoredTrainingSession(
                 checkpoint_dir=params.output, hooks=train_hooks,
                 save_checkpoint_secs=None, config=config) as sess:
             # Restore pre-trained variables
-            # sess.run_step_fn(restore_fn)
+            sess.run_step_fn(restore_fn)
             step = 0
             while not sess.should_stop():
                 if step % 2 == 0:
@@ -547,8 +570,7 @@ def main(args):
                 else:
                     sess.run_step_fn(amr_step_fn)
                 step += 1
-
-
+                # sess.run_step_fn(step_fn)
 
 
 if __name__ == "__main__":

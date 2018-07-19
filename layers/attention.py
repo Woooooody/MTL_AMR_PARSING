@@ -357,7 +357,7 @@ def multihead_attention(queries, memories, bias, num_heads, key_size,
             # self attention
             size = key_size * 2 + value_size    # encoder中,q k v是一个东西
 
-            combined = linear(queries, size, True, True, scope="qkv_transform")     # (?, ?, 1536)
+            combined = linear(queries, size, True, True, scope=scope+"_qkv_transform")     # (?, ?, 1536)
 
             q, k, v = tf.split(combined, [key_size, key_size, value_size],      # (?, ?, 512)
                                axis=-1)
@@ -368,9 +368,9 @@ def multihead_attention(queries, memories, bias, num_heads, key_size,
                 next_state["key"] = k
                 next_state["value"] = v
         else:
-            q = linear(queries, key_size, True, True, scope="q_transform")
+            q = linear(queries, key_size, True, True, scope=scope+"_q_transform")
             combined = linear(memories, key_size + value_size, True,
-                              scope="kv_transform")
+                              scope=scope+"_kv_transform")
             k, v = tf.split(combined, [key_size, value_size], axis=-1)
 
         # split heads
@@ -392,7 +392,7 @@ def multihead_attention(queries, memories, bias, num_heads, key_size,
 
         if output:
             outputs = linear(x, output_size, True, True,
-                             scope="output_transform")
+                             scope=scope+"_output_transform")
         else:
             outputs = x
 

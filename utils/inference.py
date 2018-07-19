@@ -201,12 +201,12 @@ def beam_search(func, state, batch_size, beam_size, max_length, alpha,
     return final_seqs, final_scores
 
 
-def create_inference_graph(models, features, params):
+def create_inference_graph(models, features, params, problem=None):
     if not isinstance(models, (list, tuple)):
         raise ValueError("'models' must be a list or tuple")
 
     features = copy.copy(features)
-    model_fns = [model.get_inference_func() for model in models]        # return encoder and decoder function of model
+    model_fns = [model.get_inference_func2(problem=problem) for model in models]    # return encoder and decoder function of model
 
     decode_length = params.decode_length
     beam_size = params.beam_size
@@ -232,9 +232,9 @@ def create_inference_graph(models, features, params):
     #   funcs : [decoder_fn()]
 
     batch_size = tf.shape(features["source"])[0]
-    pad_id = params.mapping["target"][params.pad]
-    bos_id = params.mapping["target"][params.bos]
-    eos_id = params.mapping["target"][params.eos]
+    pad_id = params.mapping[problem+"_target"][params.pad]
+    bos_id = params.mapping[problem+"_target"][params.bos]
+    eos_id = params.mapping[problem+"_target"][params.eos]
 
     # Expand the inputs
     # [batch, length] => [batch, beam_size, length]
